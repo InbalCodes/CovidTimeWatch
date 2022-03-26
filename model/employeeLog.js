@@ -1,50 +1,59 @@
+var db = require('../db/db');
+
 class EmployeeLog {
-  constructor(name) {
-    this.name = name
-    this.entries = []
+  constructor(id) {
+    this.id = id
   }
   
-  isInTheOffice() {
-    if (this.entries.length <= 0) {
+  async isInTheOffice() {
+    const result = await db.execute("SELECT r.left_time from employees e, entries r WHERE e.id = r.employee_id AND e.id = $1 AND e.last_entry = r.id", [this.id])
+    
+    if (!result || result.rowCount === 0) {
       return false
     }
     
-    return this.entries[this.entries.length - 1].leaving == 0
+    return result.rows[0].left_time == 0
   }
   
-  arrive() {
-    if (this.isInTheOffice()) {
-      console.log("Can't arrive if already in the office " + this.name)
+  async arrive() {
+    if (await this.isInTheOffice()) {
+      console.log("Can't arrive if already in the office " + this.id)
       return false
     }
     
-    this.entries.push({
-      arriving: Date.now(),
-      leaving: 0
-    })
+    const result = await db.execute("INSERT INTO entries (employee_id, arrived_time, left_time) VALUES ($1, $2, $3) RETURNING id", [this.id, Date.now(), 0])
     
-    return true
-  }
-  
-  leave() {
-    if (!this.isInTheOffice()) {
-      console.log("Can't leave the office if hasn't arrived " + this.name)
+    if (!result || result.rowCount !== 1) {
       return false
     }
     
-    this.entries[this.entries.length - 1].leaving = Date.now()
-    return true
+    const updateResult = await db.execute("UPDATE employees SET last_entry = $1 WHERE id = $2", [result.rows[0].id, this.id])
+    return updateResult && updateResult.rowCount > 0
   }
   
-  toPrettyLogJson() {
+  async leave() {
+    if (!await this.isInTheOffice()) {
+      console.log("Can't leave the office if hasn't arrived " + this.id)
+      return false
+    }
+    
+    const result = await db.execute("UPDATE entries SET left_time = $1 WHERE id IN (SELECT last_entry FROM employees WHERE id = $2)", [Date.now(), this.id])
+    return result && result.rowCount > 0
+  }
+  
+  async toPrettyLogJson() {
     var prettyLog = []
     
-    for (var i = 0; i < this.entries.length; i++) {
-      var entry = this.entries[i]
-      
+    const result = await db.execute("SELECT arrived_time, left_time FROM entries WHERE employee_id = $1", [this.id])
+    
+    if (!result) {
+      return prettyLog
+    }
+    
+    for (const row of result.rows) {
       prettyLog.push({
-        arriving: new Date(entry.arriving).toLocaleString(),
-        leaving: new Date(entry.leaving).toLocaleString()
+        arriving: new Date(parseInt(row.arrived_time)).toLocaleString(),
+        leaving: row.left_time == '0' ? "Still in the office" : new Date(parseInt(row.left_time)).toLocaleString()
       })
     }
     

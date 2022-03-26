@@ -1,8 +1,15 @@
 var createError = require('http-errors');
 var express = require('express');
 var logger = require('morgan');
+var db = require('./db/db');
+var overlaps = require('./model/employeesOverlaps');
 
 var employeesRouter = require('./routes/employees');
+
+db.connect()
+db.createTables()
+
+overlaps.loadFromDB()
 
 var app = express();
 

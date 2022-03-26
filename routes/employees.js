@@ -1,92 +1,94 @@
 const express = require('express');
+const getEmployeeId = require('../model/employee');
 const EmployeeLog = require('../model/employeeLog');
-const EmployeesOverlaps = require('../model/EmployeesOverlaps');
+const overlaps = require('../model/employeesOverlaps');
 const router = express.Router();
 
-const employees = {}
-const overlaps = new EmployeesOverlaps()
-
-router.post('/arrive', function(req, res, next) {
+router.post('/arrive', async function(req, res, next) {
   if (!req.body || !req.body.name) {
     res.status(500).send('missing employee name')
     return
   }
   
   const employeeName = req.body.name
-  let employeeLog = employees[employeeName]
+  const id = await getEmployeeId(employeeName)
   
-  if (!employeeLog) {
-    employees[employeeName] = new EmployeeLog(employeeName)
-    employeeLog = employees[employeeName]
+  if (id == null) {
+    res.status(500).send('error getting employee id')
   }
+  
+  const employeeLog = new EmployeeLog(id)
   
   if (!employeeLog.arrive()) {
     return res.status(500).send('arrive failed');
   }
   
-  overlaps.employeeArrived(employeeName)
+  overlaps.employeeArrived(id)
   
   res.status(200).send('ok');
 });
 
-router.post('/leave', function(req, res, next) {
+router.post('/leave', async function(req, res, next) {
   if (!req.body || !req.body.name) {
     res.status(500).send('missing employee name')
     return
   }
   
   const employeeName = req.body.name
-  const employeeLog = employees[employeeName]
+  const id = await getEmployeeId(employeeName)
   
-  if (!employeeLog) {
-    return res.status(500).send('not in the office');
+  if (id == null) {
+    res.status(500).send('error getting employee id')
   }
+  
+  const employeeLog = new EmployeeLog(id)
   
   if (!employeeLog.leave()) {
     return res.status(500).send('leave failed');
   }
   
-  overlaps.employeeLeft(employeeName)
+  overlaps.employeeLeft(id)
   
   res.status(200).send('ok');
 });
 
-router.post('/positive', function(req, res, next) {
+router.post('/positive', async function(req, res, next) {
   if (!req.body || !req.body.name) {
     res.status(500).send('missing employee name')
     return
   }
   
   const employeeName = req.body.name
-  const employeeLog = employees[employeeName]
+  const id = await getEmployeeId(employeeName)
   
-  if (!employeeLog) {
-    return res.status(200).send('wasnt in the office');
+  if (id == null) {
+    res.status(500).send('error getting employee id')
   }
   
-  const quarantinedEmployees = overlaps.getQuarantinedEmployees(employeeName)
+  const quarantinedEmployees = await overlaps.getQuarantinedEmployees(id)
   
-  for (otherEmployee in quarantinedEmployees) {
+  for (otherEmployee of quarantinedEmployees) {
       console.log(otherEmployee + " should go to quarantine")
   }
   
   res.status(200).send('ok');
 });
 
-router.get('/history', function(req, res, next) {
+router.get('/history', async function(req, res, next) {
   if (!req.query || !req.query.name) {
     res.status(500).send('missing employee name')
     return
   }
   
   const employeeName = req.query.name
-  const employeeLog = employees[employeeName]
+  const id = await getEmployeeId(employeeName)
   
-  if (!employeeLog) {
-    return res.status(200).send('no log');
+  if (id == null) {
+    res.status(500).send('error getting employee id')
   }
   
-  return res.status(200).send(JSON.stringify(employeeLog.toPrettyLogJson()))
+  const employeeLog = new EmployeeLog(id)
+  return res.status(200).send(JSON.stringify(await employeeLog.toPrettyLogJson()))
 });
 
 module.exports = router;
