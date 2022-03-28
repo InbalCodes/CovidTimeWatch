@@ -4,10 +4,11 @@ A web server application that would help our office stay safe during a
 global pandemic.
 
 Implemented use cases:
-/employees/arrive - employee enters the office.
-/employees/leave - employee leaves the office.
-/employees/history - all past employee logs.
-/employees/positive - empolyee annouced positive for covid, output - all the employess that should go to quarantine.
+
+ 1. /employees/arrive - employee enters the office.
+ 2. /employees/leave - employee leaves the office.
+ 3. /employees/history - all past employee logs.
+ 4. /employees/positive - empolyee annouced positive for covid, output - all the employess that should go to quarantine.
 
 ## Run server
 
